@@ -256,6 +256,9 @@
 				DEVELOPMENT_TEAM = 5RJWU8676D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Aurora needs camera access to scan your QR code and take photos";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Aurora needs motion access to count your push ups";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Aurora needs photo access to save your wake up photos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +291,9 @@
 				DEVELOPMENT_TEAM = 5RJWU8676D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Aurora needs camera access to scan your QR code and take photos";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Aurora needs motion access to count your push ups";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Aurora needs photo access to save your wake up photos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
