@@ -1,11 +1,5 @@
-//
-//  AuroraApp.swift
-//  Aurora
-//
-//  Created by OJ Strachan on 07/04/2026.
-//
-
 import SwiftUI
+import SwiftData
 
 @main
 struct AuroraApp: App {
@@ -13,5 +7,6 @@ struct AuroraApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: Alarm.self)
     }
 }
