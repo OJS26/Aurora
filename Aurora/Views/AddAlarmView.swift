@@ -170,6 +170,7 @@ struct AddAlarmView: View {
     func saveAlarm() {
         let alarm = Alarm(time: time, label: label, taskType: taskType)
         modelContext.insert(alarm)
+        AlarmManager.shared.scheduleAlarm(alarm)
         dismiss()
     }
 }

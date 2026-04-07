@@ -6,7 +6,8 @@ struct QRScanView: View {
     let onComplete: () -> Void
     
     @State private var showSuccess = false
-    @State private var errorMessage = ""
+    @State private var scanLineOffset: CGFloat = -140
+    @State private var isAnimating = false
     
     var body: some View {
         ZStack {
@@ -20,44 +21,77 @@ struct QRScanView: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(.white)
                 
-                Text("Find the label you placed and scan it to dismiss the alarm")
+                Text("Point the camera at your Aurora QR label")
                     .font(.subheadline)
                     .foregroundStyle(.gray)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                 
-                // Camera preview
-                QRScannerPreview(expectedValue: alarm.qrCodeValue) {
-                    showSuccess = true
-                    onComplete()
-                }
-                .frame(height: 300)
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-                .padding(.horizontal, 24)
-                .overlay {
+                // Camera preview with scan line
+                ZStack {
+                    QRScannerPreview(expectedValue: alarm.qrCodeValue) {
+                        showSuccess = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            onComplete()
+                        }
+                    }
+                    .frame(height: 300)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    
+                    // Corner brackets
                     RoundedRectangle(cornerRadius: 24)
                         .stroke(Color.orange, lineWidth: 2)
-                        .padding(.horizontal, 24)
+                        .frame(height: 300)
+                    
+                    // Scan line animation
+                    if !showSuccess {
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.clear, .orange.opacity(0.8), .clear],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(height: 2)
+                            .offset(y: scanLineOffset)
+                            .animation(
+                                .easeInOut(duration: 2).repeatForever(autoreverses: true),
+                                value: scanLineOffset
+                            )
+                    }
                 }
-                
-                if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.subheadline)
-                }
-                
-                Spacer()
+                .padding(.horizontal, 24)
                 
                 if showSuccess {
-                    Text("✅ You're up! Let's go!")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.orange)
+                    VStack(spacing: 8) {
+                        Text("✅")
+                            .font(.system(size: 48))
+                        Text("You're up! Let's go!")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 8, height: 8)
+                            .scaleEffect(isAnimating ? 1.3 : 0.7)
+                            .animation(.easeInOut(duration: 0.6).repeatForever(), value: isAnimating)
+                        Text("Scanning...")
+                            .font(.subheadline)
+                            .foregroundStyle(.gray)
+                    }
                 }
                 
                 Spacer()
                     .frame(height: 32)
             }
+        }
+        .onAppear {
+            isAnimating = true
+            scanLineOffset = 140
         }
     }
 }
@@ -89,16 +123,29 @@ class QRScannerView: UIView, AVCaptureMetadataOutputObjectsDelegate {
     func startScanning() {
         captureSession = AVCaptureSession()
         
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device),
-              let session = captureSession else { return }
+        guard let device = AVCaptureDevice.default(for: .video) else {
+            print("No camera device found")
+            return
+        }
         
-        session.addInput(input)
+        guard let input = try? AVCaptureDeviceInput(device: device) else {
+            print("Could not create camera input")
+            return
+        }
+        
+        guard let session = captureSession else { return }
+        
+        if session.canAddInput(input) {
+            session.addInput(input)
+        }
         
         let output = AVCaptureMetadataOutput()
-        session.addOutput(output)
-        output.setMetadataObjectsDelegate(self, queue: .main)
-        output.metadataObjectTypes = [.qr]
+        
+        if session.canAddOutput(output) {
+            session.addOutput(output)
+            output.setMetadataObjectsDelegate(self, queue: .main)
+            output.metadataObjectTypes = [.qr]
+        }
         
         previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer?.videoGravity = .resizeAspectFill
@@ -108,8 +155,9 @@ class QRScannerView: UIView, AVCaptureMetadataOutputObjectsDelegate {
             layer.addSublayer(preview)
         }
         
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .userInitiated).async {
             session.startRunning()
+            print("QR scanner started, looking for: \(self.expectedValue)")
         }
     }
     
@@ -121,8 +169,17 @@ class QRScannerView: UIView, AVCaptureMetadataOutputObjectsDelegate {
     func metadataOutput(_ output: AVCaptureMetadataOutput,
                         didOutput metadataObjects: [AVMetadataObject],
                         from connection: AVCaptureConnection) {
-        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              object.stringValue == expectedValue else { return }
+        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject else {
+            return
+        }
+        
+        print("QR scanned: \(object.stringValue ?? "nil")")
+        print("Expected: \(expectedValue)")
+        
+        guard object.stringValue == expectedValue else {
+            print("QR code doesn't match!")
+            return
+        }
         
         captureSession?.stopRunning()
         onScanSuccess?()

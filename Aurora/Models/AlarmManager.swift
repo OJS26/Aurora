@@ -1,10 +1,9 @@
 import Foundation
 import UserNotifications
 import AVFoundation
-import SwiftData
 import Combine
 
-class AlarmManager: NSObject, ObservableObject {
+class AlarmManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = AlarmManager()
     
     @Published var activeAlarm: Alarm? = nil
@@ -15,6 +14,7 @@ class AlarmManager: NSObject, ObservableObject {
     override init() {
         super.init()
         setupAudioSession()
+        UNUserNotificationCenter.current().delegate = self
     }
     
     // MARK: - Audio Setup
@@ -34,10 +34,11 @@ class AlarmManager: NSObject, ObservableObject {
     // MARK: - Schedule Alarm
     func scheduleAlarm(_ alarm: Alarm) {
         let content = UNMutableNotificationContent()
-        content.title = "Aurora"
-        content.body = alarm.label.isEmpty ? "Time to wake up! 🌅" : alarm.label
+        content.title = "Aurora 🌅"
+        content.body = alarm.label.isEmpty ? "Time to wake up!" : alarm.label
         content.sound = UNNotificationSound.defaultCritical
         content.userInfo = ["alarmID": alarm.id.uuidString]
+        content.interruptionLevel = .critical
         
         let components = Calendar.current.dateComponents([.hour, .minute], from: alarm.time)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
@@ -50,7 +51,9 @@ class AlarmManager: NSObject, ObservableObject {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error {
-                print("Failed to schedule alarm: \(error)")
+                print("Failed to schedule: \(error)")
+            } else {
+                print("Alarm scheduled for \(components.hour ?? 0):\(components.minute ?? 0)")
             }
         }
     }
@@ -62,7 +65,32 @@ class AlarmManager: NSObject, ObservableObject {
         )
     }
     
-    // MARK: - Fire Alarm (called when notification received)
+    // MARK: - Notification Delegate
+    // Called when notification fires while app is in foreground
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        handleNotification(notification.request.content.userInfo)
+        completionHandler([.banner, .sound])
+    }
+    
+    // Called when user taps notification while app is in background
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        handleNotification(response.notification.request.content.userInfo)
+        completionHandler()
+    }
+    
+    func handleNotification(_ userInfo: [AnyHashable: Any]) {
+        guard let alarmID = userInfo["alarmID"] as? String else { return }
+        print("Handling notification for alarm: \(alarmID)")
+        DispatchQueue.main.async {
+            self.isAlarmFiring = true
+        }
+    }
+    
+    // MARK: - Fire Alarm
     func fireAlarm(_ alarm: Alarm) {
         activeAlarm = alarm
         isAlarmFiring = true
@@ -79,7 +107,7 @@ class AlarmManager: NSObject, ObservableObject {
     
     // MARK: - Sound
     func startSound() {
-        guard let url = Bundle.main.url(forResource: "alarm", withExtension: "mp3") else {
+        guard let url = Bundle.main.url(forResource: "alarm", withExtension: "wav") else {
             print("Alarm sound file not found")
             return
         }
@@ -96,7 +124,8 @@ class AlarmManager: NSObject, ObservableObject {
     
     // MARK: - Permissions
     func requestPermissions() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .criticalAlert]) { granted, error in
+            print("Notification permission granted: \(granted)")
             if let error {
                 print("Permission error: \(error)")
             }
