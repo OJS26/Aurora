@@ -39,6 +39,12 @@ struct QRCodeView: View {
                         .font(.caption)
                         .foregroundStyle(.gray)
                         .multilineTextAlignment(.center)
+
+                    Text(alarm.qrCodeValue)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.3))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                     
                     Spacer()
                     
