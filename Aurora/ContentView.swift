@@ -1,9 +1,5 @@
-//
-//  ContentView.swift
-//  Aurora
-//
-//  Created by OJ Strachan on 07/04/2026.
-//
+
+//Aurora
 
 import SwiftUI
 
